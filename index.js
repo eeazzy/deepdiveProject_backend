@@ -7,6 +7,7 @@ const loginRouter = require('./login');
 const getUserInfoRouter = require('./getUserInfo');
 const searchRestaurantRouter = require('./searchRestaurant');
 const searcMedicalRouter = require('./searchMedical');
+const searcPlaceRouter = require('./searchPlace');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -23,6 +24,7 @@ app.use('/oauth/kakao', loginRouter);
 app.use('/api', getUserInfoRouter);
 app.use('/search/restaurant', searchRestaurantRouter);
 app.use('/search/medical', searcMedicalRouter);
+app.use('/search/place', searcPlaceRouter);
 
 app.listen(PORT, async () => {
   console.log(`Server is running on http://localhost:${PORT}`);

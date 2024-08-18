@@ -32,7 +32,7 @@ router.post('/', (req, res) => {
       if (address.includes(trimmedCity) && address.includes(trimmedDistrict)) {
         cityFound = true;
         results.push({
-          restaurantName: data.RSTRNT_NM,
+          name: data.RSTRNT_NM,
           address: data.RSTRNT_ROAD_NM_ADDR
         });
       }

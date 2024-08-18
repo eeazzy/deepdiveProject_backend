@@ -4,6 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const loginRouter = require('./login');
+const logoutRouter = require('./logout');
 const getUserInfoRouter = require('./getUserInfo');
 const searchRestaurantRouter = require('./searchRestaurant');
 const searchMedicalRouter = require('./searchMedical');
@@ -22,6 +23,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 app.use('/oauth/kakao', loginRouter);
+app.use('/oauth/logout', logoutRouter);
 app.use('/api', getUserInfoRouter);
 app.use('/search/restaurant', searchRestaurantRouter);
 app.use('/search/medical', searchMedicalRouter);

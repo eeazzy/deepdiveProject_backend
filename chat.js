@@ -59,14 +59,32 @@ router.post('/:userId', async (req, res) => {
 
     // 시, 구, 카테고리 추출
     const [city, district, category] = trimmedMessage.split(" ");
+
+    // 사용자의 잘못된 메시지 먼저 저장
+    await pool.query(
+        'INSERT INTO chat_history (user_id, message, sender) VALUES (?, ?, ?)',
+        [userId, trimmedMessage, 'user']
+    );
+
     // 시와 구가 city.json에 있는지 확인
     if (!cityData[city] || !cityData[city].includes(district)) {
+        const errorMessage = '잘못된 입력 형식입니다. 올바른 시/구를 입력하세요.';
+
+        // 봇의 응답을 DB에 저장
         await pool.query(
             'INSERT INTO chat_history (user_id, message, sender) VALUES (?, ?, ?)',
-            [userId, '잘못된 입력 형식입니다. 올바른 시/구를 입력하세요.', 'bot']
+            [userId, errorMessage, 'bot']
         );
 
-        return res.status(400).json({ message: '잘못된 입력 형식입니다. 올바른 시/구를 입력하세요.' });
+        // 사용자에게 응답
+        return res.json({
+            success: true,
+            userId,
+            messages: [
+                { sender: 'user', message: trimmedMessage },
+                { sender: 'server', message: errorMessage }
+            ]
+        });
     }
 
     let searchUrl = "";
@@ -82,12 +100,22 @@ router.post('/:userId', async (req, res) => {
             searchUrl = `${BASE_URL}/place`;
             break;
         default:
+            const categoryErrorMessage = '잘못된 카테고리입니다. 식당, 병원, 문화시설 중 하나를 선택해 주세요.';
+            // 봇의 응답을 DB에 저장
             await pool.query(
                 'INSERT INTO chat_history (user_id, message, sender) VALUES (?, ?, ?)',
-                [userId, '잘못된 카테고리입니다. 식당, 병원, 문화시설 중 하나를 선택해 주세요.', 'bot']
+                [userId, categoryErrorMessage, 'bot']
             );
 
-            return res.status(400).json({ success: false, message: "잘못된 카테고리입니다. 식당, 병원, 문화시설 중 하나를 선택해 주세요." });
+            // 사용자에게 응답
+            return res.json({
+                success: true,
+                userId,
+                messages: [
+                    { sender: 'user', message: trimmedMessage },
+                    { sender: 'server', message: categoryErrorMessage }
+                ]
+            });
     }
 
     try {

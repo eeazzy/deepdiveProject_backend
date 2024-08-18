@@ -5,9 +5,6 @@ const csv = require('csv-parser');
 
 const router = express.Router();
 
-// city.json 파일 로드
-const cityData = JSON.parse(fs.readFileSync('./data/city.json', 'utf-8'));
-
 // CSV 파일 경로 설정
 const filePath = path.join(__dirname, './data/restaurants.csv');
 
@@ -23,11 +20,6 @@ router.post('/', (req, res) => {
   const trimmedCity = city.trim();
   const trimmedDistrict = district.trim();
 
-  // 시와 구가 city.json에 있는지 확인
-  if (!cityData[trimmedCity] || !cityData[trimmedCity].includes(trimmedDistrict)) {
-    return res.status(400).json({ message: '잘못된 입력 형식입니다. 올바른 시/구를 입력하세요.' });
-  }
-
   let results = [];
   let cityFound = false;
 
@@ -41,9 +33,7 @@ router.post('/', (req, res) => {
         cityFound = true;
         results.push({
           restaurantName: data.RSTRNT_NM,
-          address: data.RSTRNT_ROAD_NM_ADDR,
-          phone: data.RSTRNT_TEL_NO,
-          menu: data.SLE_MENU_INFO_DC,
+          address: data.RSTRNT_ROAD_NM_ADDR
         });
       }
     })
@@ -52,6 +42,39 @@ router.post('/', (req, res) => {
         return res.status(400).json({ success: false, message: "해당 조건에 맞는 데이터가 없습니다." });
       }
       res.json({ success: true, data: results });
+    })
+    .on('error', (err) => {
+      console.error('CSV 파일 읽기 중 오류 발생:', err);
+      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
+    });
+});
+
+// 가게 이름을 통해 상세 정보를 검색하는 엔드포인트
+router.get('/:restaurantName', (req, res) => {
+  const restaurantName = req.params.restaurantName.trim();
+
+  let restaurantFound = false;
+
+  fs.createReadStream(filePath)
+    .pipe(csv())
+    .on('data', (data) => {
+      if (data.RSTRNT_NM.trim() === restaurantName) {
+        restaurantFound = true;
+        res.json({
+          success: true,
+          data: {
+            restaurantName: data.RSTRNT_NM,
+            address: data.RSTRNT_ROAD_NM_ADDR,
+            phone: data.RSTRNT_TEL_NO,
+            menu: data.SLE_MENU_INFO_DC
+          }
+        });
+      }
+    })
+    .on('end', () => {
+      if (!restaurantFound) {
+        res.status(404).json({ success: false, message: "해당 가게를 찾을 수 없습니다." });
+      }
     })
     .on('error', (err) => {
       console.error('CSV 파일 읽기 중 오류 발생:', err);

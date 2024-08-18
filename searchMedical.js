@@ -5,9 +5,6 @@ const csv = require('csv-parser');
 
 const router = express.Router();
 
-// city.json 파일 로드
-const cityData = JSON.parse(fs.readFileSync('./data/city.json', 'utf-8'));
-
 // CSV 파일 경로 설정
 const filePath = path.join(__dirname, './data/petfriendlyPlaces.csv');
 
@@ -23,16 +20,13 @@ router.post('/', (req, res) => {
   const trimmedCity = city.trim();
   const trimmedDistrict = district.trim();
 
-  // 시와 구가 city.json에 있는지 확인
-  if (!cityData[trimmedCity] || !cityData[trimmedCity].includes(trimmedDistrict)) {
-    return res.status(400).json({ message: '잘못된 입력 형식입니다. 올바른 시/구를 입력하세요.' });
-  }
-
   let results = [];
 
   // CSV 파일 읽기
   fs.createReadStream(filePath)
-    .pipe(csv())
+    .pipe(csv({
+      headers: ['FCLTY_NM', 'CTGRY_ONE_NM', 'CTGRY_TWO_NM', 'CTGRY_THREE_NM', 'CTPRVN_NM', 'SIGNGU_NM', 'LEGALDONG_NM', 'LI_NM', 'LNBR_NO', 'ROAD_NM', 'BULD_NO', 'LC_LA', 'LC_LO', 'ZIP_NO', 'RDNMADR_NM', 'LNM_ADDR', 'TEL_NO', 'HMPG_URL', 'RSTDE_GUID_CN', 'OPER_TIME', 'PARKNG_POSBL_AT', 'UTILIIZA_PRC_CN', 'PET_POSBL_AT', 'PET_INFO_CN', 'ENTRN_POSBL_PET_SIZE_VALUE', 'PET_LMTT_MTR_CN', 'IN_PLACE_ACP_POSBL_AT', 'OUT_PLACE_ACP_POSBL_AT', 'FCLTY_INFO_DC', 'PET_ACP_ADIT_CHRGE_VALUE', 'LAST_UPDT_DE']
+    }))
     .on('data', (data) => {
       // CTGRY_TWO_NM이 "반려의료"이고 주소가 일치하는지 확인
       if (
@@ -40,7 +34,11 @@ router.post('/', (req, res) => {
         data.RDNMADR_NM.includes(trimmedCity) &&
         data.RDNMADR_NM.includes(trimmedDistrict)
       ) {
-        results.push(data);
+        // console.log('CSV Data:', data);
+        results.push({
+          name: data.FCLTY_NM,
+          address: data.RDNMADR_NM
+        });
       }
     })
     .on('end', () => {
@@ -54,6 +52,43 @@ router.post('/', (req, res) => {
       }
       
       res.json({ success: true, data: results });
+    })
+    .on('error', (err) => {
+      console.error('CSV 파일 읽기 중 오류 발생:', err);
+      res.status(500).json({ success: false, message: "서버 오류가 발생했습니다." });
+    });
+});
+
+// 반려의료 시설 상세 정보 검색 엔드포인트
+router.get('/:facilityName', (req, res) => {
+  const facilityName = req.params.facilityName.trim();
+
+  let facilityFound = false;
+  let facilityData = null;
+
+  fs.createReadStream(filePath)
+    .pipe(csv({
+      headers: ['FCLTY_NM', 'CTGRY_ONE_NM', 'CTGRY_TWO_NM', 'CTGRY_THREE_NM', 'CTPRVN_NM', 'SIGNGU_NM', 'LEGALDONG_NM', 'LI_NM', 'LNBR_NO', 'ROAD_NM', 'BULD_NO', 'LC_LA', 'LC_LO', 'ZIP_NO', 'RDNMADR_NM', 'LNM_ADDR', 'TEL_NO', 'HMPG_URL', 'RSTDE_GUID_CN', 'OPER_TIME', 'PARKNG_POSBL_AT', 'UTILIIZA_PRC_CN', 'PET_POSBL_AT', 'PET_INFO_CN', 'ENTRN_POSBL_PET_SIZE_VALUE', 'PET_LMTT_MTR_CN', 'IN_PLACE_ACP_POSBL_AT', 'OUT_PLACE_ACP_POSBL_AT', 'FCLTY_INFO_DC', 'PET_ACP_ADIT_CHRGE_VALUE', 'LAST_UPDT_DE']
+    }))
+    .on('data', (data) => {
+      if (data.FCLTY_NM === facilityName) {
+        facilityFound = true;
+        facilityData = {
+          name: data.FCLTY_NM,
+          type: data.CTGRY_THREE_NM,
+          address: data.RDNMADR_NM,
+          phone: data.TEL_NO,
+          restDay: data.RSTDE_GUID_CN,
+          operationTime: data.OPER_TIME
+        };
+      }
+    })
+    .on('end', () => {
+      if (facilityFound) {
+        res.json({ success: true, data: facilityData });
+      } else {
+        res.status(404).json({ success: false, message: "해당 시설을 찾을 수 없습니다." });
+      }
     })
     .on('error', (err) => {
       console.error('CSV 파일 읽기 중 오류 발생:', err);
